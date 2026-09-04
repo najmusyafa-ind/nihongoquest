@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Rounded square badge background -->
+  <rect width="64" height="64" rx="14" fill="#e94560"/>
+  <!-- Torii gate (kasagi - top crossbeam) -->
+  <rect x="8" y="16" width="48" height="7" rx="3.5" fill="white"/>
+  <!-- Torii gate (nuki - second crossbeam) -->
+  <rect x="13" y="26" width="38" height="5" rx="2.5" fill="white" opacity="0.75"/>
+  <!-- Left pillar -->
+  <rect x="13" y="26" width="7" height="24" rx="3.5" fill="white"/>
+  <!-- Right pillar -->
+  <rect x="44" y="26" width="7" height="24" rx="3.5" fill="white"/>
+</svg>

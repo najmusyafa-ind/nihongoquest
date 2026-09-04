@@ -1,0 +1,27 @@
+{
+  "name": "NihongoQuest",
+  "short_name": "日本語Quest",
+  "description": "Master Japanese vocabulary with smart flashcards and AI-powered explanations",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f5f0",
+  "theme_color": "#e94560",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "language"],
+  "lang": "ja",
+  "dir": "ltr"
+}

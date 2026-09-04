@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+Allow: /auth/login
+Allow: /auth/register
+
+# Disallow authenticated/private areas
+Disallow: /dashboard
+Disallow: /study
+Disallow: /session
+Disallow: /settings
+Disallow: /vocabulary
+Disallow: /quiz
+Disallow: /analytics
+Disallow: /achievements
+
+# Disallow API routes
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://nihongoquest.app/sitemap.xml
