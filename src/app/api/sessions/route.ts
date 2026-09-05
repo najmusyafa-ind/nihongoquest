@@ -17,7 +17,7 @@ import { cookies } from 'next/headers';
 
 import { z } from 'zod';
 
-import { rateLimit as _legacyRateLimit, checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { childLogger } from '@/lib/logger';
 import { getOrCreateRequestId, requestIdHeader } from '@/lib/request-id';
 
