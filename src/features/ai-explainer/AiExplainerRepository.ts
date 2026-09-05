@@ -1,11 +1,11 @@
-﻿// src/features/ai-explainer/AiExplainerRepository.ts
+// src/features/ai-explainer/AiExplainerRepository.ts
 // Cache management for Gemini API responses
 
 import { db } from '@/lib/db';
 
 import { aiExplanationCache } from '../../../db/schema';
 
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 
 import type { AiExplanationCache } from '@/types/entities';
 import { childLogger } from '@/lib/logger';
@@ -34,10 +34,18 @@ export const AiExplainerRepository = {
   async getFromCache(prompt: string): Promise<AiExplanationCache | null> {
     try {
       const cacheKey = await generateCacheKey(prompt);
+      // M-1 fix: TTL — only return cache hits created within the last 30 days.
+      // Prevents stale AI responses from surviving indefinitely as Gemini improves.
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const results = await db
         .select()
         .from(aiExplanationCache)
-        .where(eq(aiExplanationCache.cacheKey, cacheKey))
+        .where(
+          and(
+            eq(aiExplanationCache.cacheKey, cacheKey),
+            gte(aiExplanationCache.createdAt, thirtyDaysAgo)
+          )
+        )
         .limit(1);
       return results[0] ?? null;
     } catch (error) {

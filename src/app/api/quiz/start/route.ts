@@ -1,4 +1,4 @@
-﻿// src/app/api/quiz/start/route.ts
+// src/app/api/quiz/start/route.ts
 // Controller: POST /api/quiz/start â†’ { questions: QuizQuestion[] }
 // Zod validate â†’ auth â†’ QuizService â†’ typed response
 
@@ -14,7 +14,7 @@ import type { QuizQuestion, StartQuizResponse } from '@/types/quiz.types';
 
 import type { JlptLevel } from '@/types/enums';
 
-import { rateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { childLogger } from '@/lib/logger';
 
 const log = childLogger('api/quiz');
@@ -37,7 +37,7 @@ export async function POST(
   const requestId = crypto.randomUUID();
 
   // â”€â”€ Rate Limiting â€” 20 req / 60 s â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const rl = rateLimit(request, { limit: 20, windowMs: 60_000 });
+  const rl = await checkRateLimit(request, { limit: 20, windowMs: 60_000 });
   if (!rl.ok) {
     const rlh = rateLimitHeaders(rl, 20);
     return NextResponse.json(

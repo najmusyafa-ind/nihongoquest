@@ -96,4 +96,10 @@ export interface LevelProgress {
 export interface PendingStudySession {
   session: Omit<StudySession, 'completedAt'> & { completedAt: Date };
   results: Omit<StudyResult, 'id' | 'answeredAt'>[];
+  /**
+   * M-2 fix: Number of failed sync attempts.
+   * Session is removed from queue when retryCount >= MAX_SYNC_RETRIES (5).
+   * Prevents IndexedDB bloat from permanently-corrupt offline sessions.
+   */
+  retryCount?: number;
 }

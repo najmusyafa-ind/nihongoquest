@@ -4,7 +4,7 @@
 // Data source: StaticVocabularyRepository (JSON files) — not the flashcards DB table.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { rateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import type { Flashcard } from '@/types/entities';
 
 interface VocabularyResponse {
@@ -23,7 +23,7 @@ export async function GET(
   const requestId = crypto.randomUUID();
 
   // ── Rate Limiting — 60 req / 60 s ───────────────────────────────────────────
-  const rl = rateLimit(request, { limit: 60, windowMs: 60_000 });
+  const rl = await checkRateLimit(request, { limit: 60, windowMs: 60_000 });
   if (!rl.ok) {
     const rlh = rateLimitHeaders(rl, 60);
     return NextResponse.json(

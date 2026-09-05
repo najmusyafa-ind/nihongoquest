@@ -5,8 +5,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { FlashcardService } from '@/features/flashcard/FlashcardService';
 import { getDemoCards, isDemoMode } from '@/lib/demo-data';
-import { rateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { getOrCreateRequestId, requestIdHeader } from '@/lib/request-id';
+import { childLogger } from '@/lib/logger';
 
 const VALID_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const;
 
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
   const reqId = getOrCreateRequestId(request);
 
   // Rate limit: 60 req/min — generous for normal sessions, blocks scrapers
-  const rl = rateLimit(request, { limit: 60, windowMs: 60_000 });
+  const rl = await checkRateLimit(request, { limit: 60, windowMs: 60_000 });
   if (!rl.ok) {
     const rlHeaders = rateLimitHeaders(rl, 60);
     return NextResponse.json(
@@ -61,9 +62,12 @@ export async function GET(request: NextRequest) {
     const cards = await FlashcardService.getSessionCards(level, count);
     return NextResponse.json({ cards }, { headers: requestIdHeader(reqId) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    // M-3 fix: Do NOT expose internal error details to client (could leak DB internals).
+    // Error is logged server-side and captured by Sentry via beforeSend.
+    const log = childLogger('api/cards');
+    log.error('[/api/cards GET] Failed to fetch cards:', { error, requestId: reqId });
     return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch cards', details: message, requestId: reqId } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch cards', requestId: reqId } },
       { status: 500, headers: requestIdHeader(reqId) },
     );
   }

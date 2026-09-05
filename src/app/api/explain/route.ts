@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getOrCreateRequestId, requestIdHeader } from "@/lib/request-id";
 import { isDemoMode } from "@/lib/demo-data";
 
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
   const reqId = getOrCreateRequestId(request);
 
   // 1. Rate Limiting -- 5 requests / 60 s (Gemini API cost protection)
-  const rl = rateLimit(request, { limit: 5, windowMs: 60_000 });
+  const rl = await checkRateLimit(request, { limit: 5, windowMs: 60_000 });
   const rlHeaders = rateLimitHeaders(rl, 5);
   if (!rl.ok) {
     return NextResponse.json(

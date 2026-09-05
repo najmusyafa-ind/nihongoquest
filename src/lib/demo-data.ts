@@ -61,4 +61,14 @@ export function isDemoMode(): boolean {
   return !process.env['DATABASE_URL'] || !process.env['NEXT_PUBLIC_SUPABASE_URL'];
 }
 
+/**
+ * M-4 fix: Separate feature flag for Gemini AI functionality.
+ * isDemoMode() checks DB/Supabase presence — this checks AI key specifically.
+ * Use this to guard AI-specific features (explain endpoint, AI Sensei).
+ * isDemoMode() is kept for backward compat and broader "no-DB" checks.
+ */
+export function isGeminiConfigured(): boolean {
+  return !!process.env['GEMINI_API_KEY'];
+}
+
 export const DEMO_SESSIONS: StudySession[] = [];

@@ -107,10 +107,22 @@ export const useStudyStore = create<StudyState>()(
 
         set({ isSyncing: true });
 
+        // M-2 fix: Max retry limit — prevents IndexedDB bloat from corrupt sessions
+        const MAX_SYNC_RETRIES = 5;
+
         let syncedCount = 0;
         let failedCount = 0;
+        const deadLetterIds: string[] = [];
 
         for (const pending of pendingSessions) {
+          // Dead-letter check: discard after MAX_SYNC_RETRIES attempts
+          const retries = pending.retryCount ?? 0;
+          if (retries >= MAX_SYNC_RETRIES) {
+            deadLetterIds.push(pending.session.id);
+            continue;
+          }
+
+
           try {
             const response = await fetch('/api/sessions', {
               method: 'POST',
@@ -134,11 +146,39 @@ export const useStudyStore = create<StudyState>()(
               get().clearPendingSession(pending.session.id);
               syncedCount++;
             } else {
+              // Increment retryCount on non-OK response
+              set((state) => ({
+                pendingSessions: state.pendingSessions.map((s) =>
+                  s.session.id === pending.session.id
+                    ? { ...s, retryCount: (s.retryCount ?? 0) + 1 }
+                    : s
+                ),
+              }));
               failedCount++;
             }
           } catch {
+            // Network error — increment retryCount
+            set((state) => ({
+              pendingSessions: state.pendingSessions.map((s) =>
+                s.session.id === pending.session.id
+                  ? { ...s, retryCount: (s.retryCount ?? 0) + 1 }
+                  : s
+              ),
+            }));
             failedCount++;
           }
+        }
+
+        // Discard dead-letter sessions (exceeded MAX_SYNC_RETRIES)
+        if (deadLetterIds.length > 0) {
+          set((state) => ({
+            pendingSessions: state.pendingSessions.filter(
+              (s) => !deadLetterIds.includes(s.session.id)
+            ),
+          }));
+          toast.error(
+            `${deadLetterIds.length} session${deadLetterIds.length > 1 ? 's' : ''} discarded after ${MAX_SYNC_RETRIES} failed attempts.`
+          );
         }
 
         set({ isSyncing: false });

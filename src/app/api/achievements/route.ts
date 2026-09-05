@@ -5,12 +5,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { AchievementsService } from '@/features/achievements/AchievementsService';
-import { rateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { isDemoMode } from '@/lib/demo-data';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Rate limit: 20 req/min — aggregate DB query, no need for high frequency
-  const rl = rateLimit(request, { limit: 20, windowMs: 60_000 });
+  const rl = await checkRateLimit(request, { limit: 20, windowMs: 60_000 });
   if (!rl.ok) {
     const rlHeaders = rateLimitHeaders(rl, 20);
     return NextResponse.json(

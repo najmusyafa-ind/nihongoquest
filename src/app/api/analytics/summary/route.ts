@@ -1,4 +1,4 @@
-﻿// src/app/api/analytics/summary/route.ts
+// src/app/api/analytics/summary/route.ts
 // Controller: GET /api/analytics/summary â†’ AnalyticsSummary
 // Auth â†’ AnalyticsService â†’ typed response.
 // Graceful degradation: Supabase paused OR user has no data â†’ EMPTY_SUMMARY (not 500)
@@ -13,7 +13,7 @@ import { cookies } from 'next/headers';
 
 import type { AnalyticsSummary } from '@/types/quiz.types';
 
-import { rateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { childLogger } from '@/lib/logger';
 
 const log = childLogger('api/analytics');
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<AnalyticsS
   const requestId = crypto.randomUUID();
 
   // â”€â”€ Rate Limiting â€” 30 req / 60 s â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const rl = rateLimit(request, { limit: 30, windowMs: 60_000 });
+  const rl = await checkRateLimit(request, { limit: 30, windowMs: 60_000 });
   if (!rl.ok) {
     const rlh = rateLimitHeaders(rl, 30);
     return NextResponse.json(

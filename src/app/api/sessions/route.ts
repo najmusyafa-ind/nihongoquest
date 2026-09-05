@@ -17,7 +17,7 @@ import { cookies } from 'next/headers';
 
 import { z } from 'zod';
 
-import { rateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { rateLimit as _legacyRateLimit, checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { childLogger } from '@/lib/logger';
 import { getOrCreateRequestId, requestIdHeader } from '@/lib/request-id';
 
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<SessionsGe
   const reqId = getOrCreateRequestId(request);
 
   // Rate Limiting — 30 req / 60 s
-  const rlGet = rateLimit(request, { limit: 30, windowMs: 60_000 });
+  const rlGet = await checkRateLimit(request, { limit: 30, windowMs: 60_000 });
   if (!rlGet.ok) {
     return NextResponse.json(
       { error: 'Too many requests.', requestId: reqId },
@@ -167,7 +167,7 @@ export async function POST(
   const reqId = getOrCreateRequestId(request);
 
   // Rate Limiting — 20 req / 60 s (write endpoint, stricter)
-  const rlPost = rateLimit(request, { limit: 20, windowMs: 60_000 });
+  const rlPost = await checkRateLimit(request, { limit: 20, windowMs: 60_000 });
   if (!rlPost.ok) {
     return NextResponse.json(
       { error: 'Too many requests.', requestId: reqId },
