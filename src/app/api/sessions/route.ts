@@ -24,6 +24,12 @@ import { getOrCreateRequestId, requestIdHeader } from '@/lib/request-id';
 const log = childLogger('api/sessions');
 
 // ── Strict Validation Schema ──────────────────────────────────────────────────
+const CardResultSchema = z.object({
+  flashcardId: z.string().uuid(),
+  userAnswer: z.string().min(0).max(200),
+  result: z.enum(['CORRECT', 'INCORRECT', 'SKIPPED']),
+});
+
 const SessionPayloadSchema = z.object({
   id: z.string().uuid(),
   level: z.enum(['N5', 'N4', 'N3', 'N2', 'N1']),
@@ -34,6 +40,8 @@ const SessionPayloadSchema = z.object({
   skippedCount: z.number().int().min(0),
   startedAt: z.string().datetime(),
   completedAt: z.string().datetime().nullable(),
+  /** Per-card results for FLASHCARD mode — used to populate study_results for analytics */
+  cardResults: z.array(CardResultSchema).max(100).optional(),
 });
 
 // ── Pagination query schema ───────────────────────────────────────────────────
@@ -267,6 +275,37 @@ export async function POST(
       incorrectCount: body.incorrectCount,
       skippedCount: body.skippedCount,
     });
+
+    // ── Persist per-card results for FLASHCARD mode (powers analytics) ─────────
+    // Bulk-insert with ON CONFLICT DO NOTHING — fully idempotent.
+    // cardResults is optional (QUIZ mode does not supply flashcard UUIDs).
+    if (body.cardResults && body.cardResults.length > 0) {
+      try {
+        const { db } = await import('@/lib/db');
+        const { studyResults } = await import('../../../../db/schema');
+        await db
+          .insert(studyResults)
+          .values(
+            body.cardResults.map(r => ({
+              sessionId:   body.id,
+              userId:      user.id,
+              flashcardId: r.flashcardId,
+              sourceMode:  'FLASHCARD' as const,
+              vocabKey:    null,
+              userAnswer:  r.userAnswer,
+              result:      r.result as 'CORRECT' | 'INCORRECT' | 'SKIPPED',
+            }))
+          )
+          .onConflictDoNothing();
+      } catch (resultErr) {
+        // Non-blocking: log and continue. Session is already saved.
+        log.error('[/api/sessions POST] Failed to insert card results (non-blocking):', {
+          error: resultErr,
+          sessionId: body.id,
+          requestId: reqId,
+        });
+      }
+    }
 
     // ── Achievement Evaluation (ADR-011, Option A — Service layer, synchronous) ─
     // Non-blocking: badge errors must NEVER fail the session save.

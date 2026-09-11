@@ -139,6 +139,12 @@ export const useStudyStore = create<StudyState>()(
                 // objects are deserialized as plain strings (JSON loses prototype).
                 startedAt: toIsoSafe(pending.session.startedAt) ?? new Date().toISOString(),
                 completedAt: toIsoSafe(pending.session.completedAt),
+                // Per-card results for analytics (study_results table)
+                cardResults: pending.results.map(r => ({
+                  flashcardId: r.flashcardId,
+                  userAnswer: r.userAnswer,
+                  result: r.result,
+                })).filter(r => r.flashcardId != null),
               }),
             });
 

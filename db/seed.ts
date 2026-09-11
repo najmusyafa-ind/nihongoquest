@@ -1,7 +1,10 @@
 // db/seed.ts — Seed 20 N5 flashcards into the database
 // Run with: npx tsx db/seed.ts
 
-import 'dotenv/config';
+import { config } from 'dotenv';
+// Load .env.local first (Next.js convention), fallback to .env
+config({ path: '.env.local' });
+config({ path: '.env' });
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { flashcards } from './schema';

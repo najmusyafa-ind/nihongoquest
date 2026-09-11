@@ -99,7 +99,7 @@ export default function RootLayout({
   ].join(' ');
 
   return (
-    <html lang="en" className={fontClasses} suppressHydrationWarning>
+    <html lang="en" className={fontClasses} suppressHydrationWarning data-scroll-behavior="smooth">
       <head />
       <body>
         <ThemeProvider>

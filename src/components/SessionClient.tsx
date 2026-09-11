@@ -162,6 +162,12 @@ function SessionInner() {
             skippedCount,
             startedAt: sessionStartTime.toISOString(),
             completedAt: new Date().toISOString(),
+            // Per-card results for analytics (study_results table)
+            cardResults: results.map(r => ({
+              flashcardId: r.flashcardId,
+              userAnswer: r.userAnswer,
+              result: r.result,
+            })),
           }),
         }).then(async (res) => {
           if (res.ok) {
