@@ -92,10 +92,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<AnalyticsS
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json(
-        { error: { code: 'UNAUTHORIZED', message: 'Authentication required.', requestId } },
-        { status: 401 }
-      );
+      // Unauthenticated or guest user: return empty summary gracefully so the UI shows the friendly empty state
+      return NextResponse.json(EMPTY_SUMMARY, {
+        headers: { 'X-NihongoQuest-Empty-State': 'guest' },
+      });
     }
 
     // â”€â”€ AnalyticsService may return empty data for new users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

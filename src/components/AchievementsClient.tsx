@@ -8,7 +8,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
-import { Trophy, Flame, Star, BookOpen, Lock, RefreshCw, Sparkles, Timer, Library, GraduationCap, Sprout } from 'lucide-react';
+import { Trophy, Flame, Star, BookOpen, Lock, RefreshCw, Sparkles, Timer, Library, GraduationCap, Sprout, AlertCircle } from 'lucide-react';
 
 import { useLangStore } from '@/store/langStore';
 import Link from 'next/link';
@@ -202,10 +202,13 @@ export function AchievementsClient() {
         const res = await fetch('/api/achievements');
         if (!res.ok) {
           const body: unknown = await res.json().catch(() => ({}));
-          const msg =
+          const rawMsg =
             typeof body === 'object' && body !== null && 'error' in body
               ? String((body as { error: { message?: string } }).error?.message ?? res.statusText)
               : res.statusText;
+          const msg = /json|syntax|token|object|failed to execute/i.test(rawMsg)
+            ? (lang === 'ja' ? '実績データの取得に失敗しました。' : 'Unable to load achievements at this time.')
+            : rawMsg;
           setState({ status: 'error', message: msg });
           return;
         }
@@ -226,11 +229,17 @@ export function AchievementsClient() {
           })
           .filter((a): a is RenderedAchievement => a !== null);
         setState({ status: 'success', achievements });
-      } catch (err) {
-        setState({ status: 'error', message: err instanceof Error ? err.message : 'Network error' });
+      } catch {
+        setState({
+          status: 'error',
+          message:
+            lang === 'ja'
+              ? '実績データの取得中に問題が発生しました。接続を確認して再試行してください。'
+              : 'Unable to load achievements at this time. Please check your connection and try again.',
+        });
       }
     })();
-  }, []);
+  }, [lang]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- loadAchievements is async; setState fires inside its async body (void IIFE), not synchronously in this effect
   useEffect(() => { loadAchievements(); }, [loadAchievements]);
@@ -268,7 +277,15 @@ export function AchievementsClient() {
   if (state.status === 'error') {
     return (
       <div role="alert" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '3rem 2rem', textAlign: 'center', minHeight: '300px', justifyContent: 'center' }}>
-        <p style={{ fontSize: '14px', color: 'var(--color-muted)' }}>{state.message}</p>
+        <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'var(--color-destructive-bg)', border: '1px solid var(--color-destructive-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AlertCircle size={24} aria-hidden style={{ color: 'var(--color-destructive)' }} />
+        </div>
+        <div>
+          <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-text)', marginBottom: '6px' }}>
+            {lang === 'ja' ? '実績を読み込めませんでした' : 'Unable to load achievements'}
+          </h2>
+          <p style={{ fontSize: '14px', color: 'var(--color-muted)', maxWidth: '340px' }}>{state.message}</p>
+        </div>
         <button onClick={loadAchievements} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '14px' }}>
           <RefreshCw size={14} aria-hidden />
           {lang === 'ja' ? '再読み込み' : 'Try again'}

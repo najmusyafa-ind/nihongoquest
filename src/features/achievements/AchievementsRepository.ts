@@ -154,10 +154,14 @@ async function isUnlocked(userId: string, achievementId: string): Promise<boolea
     const rows = await db
       .select({ id: achievementsUnlocked.id })
       .from(achievementsUnlocked)
-      .where(eq(achievementsUnlocked.userId, userId))
+      .where(
+        and(
+          eq(achievementsUnlocked.userId, userId),
+          eq(achievementsUnlocked.achievementId, achievementId)
+        )
+      )
       .limit(1);
-    // Filter in-process since drizzle compound eq is verbose — set is tiny (≤ 50 rows)
-    return rows.some(() => true);
+    return rows.length > 0;
   } catch (error) {
     log.error("[AchievementsRepository] isUnlocked failed:", { error, userId, achievementId });
     throw error;

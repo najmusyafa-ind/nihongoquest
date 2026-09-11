@@ -130,20 +130,29 @@ export function AnalyticsClient() {
         const res = await fetch('/api/analytics/summary');
         if (!res.ok) {
           const body: unknown = await res.json().catch(() => ({}));
-          const msg =
+          const rawMsg =
             typeof body === 'object' && body !== null && 'error' in body
               ? String((body as { error: { message?: string } }).error?.message ?? res.statusText)
               : res.statusText;
+          const msg = /json|syntax|token|object|failed to execute/i.test(rawMsg)
+            ? (lang === 'ja' ? 'データの読み込みに失敗しました。' : 'Unable to load analytics at this time.')
+            : rawMsg;
           setState({ status: 'error', message: msg });
           return;
         }
         const data: AnalyticsSummary = await res.json();
         setState({ status: 'success', data });
-      } catch (err) {
-        setState({ status: 'error', message: err instanceof Error ? err.message : 'Network error' });
+      } catch {
+        setState({
+          status: 'error',
+          message:
+            lang === 'ja'
+              ? 'データの読み込み中に問題が発生しました。接続を確認して再試行してください。'
+              : 'Unable to load your analytics right now. Please check your connection and try again.',
+        });
       }
     })();
-  }, []);
+  }, [lang]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- loadAnalytics runs setState inside an async IIFE, not synchronously
   useEffect(() => { loadAnalytics(); }, [loadAnalytics]);

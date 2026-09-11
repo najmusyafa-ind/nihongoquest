@@ -46,10 +46,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json(
-        { error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } },
-        { status: 401 },
-      );
+      // Guest or unauthenticated user: return full catalog with 0 progress so badges are viewable
+      const initialStats = {
+        totalSessionsCount: 0,
+        totalCardsCount: 0,
+        maxStreakInDays: 0,
+        perfectSessionsCount: 0,
+        n5SessionsCount: 0,
+        n4SessionsCount: 0,
+        hasSpeedDemonSession: false,
+      };
+      return NextResponse.json(AchievementsService.evaluateAchievements(initialStats), {
+        headers: { 'X-NihongoQuest-Empty-State': 'guest' },
+      });
     }
     userId = user.id;
   } catch {

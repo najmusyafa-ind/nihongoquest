@@ -105,7 +105,9 @@ export const StudySessionService = {
       });
     } catch (error) {
       log.error('[StudySessionService] finalizeSession failed:', error);
-      // Don't throw â€” we still return stats even if DB fails
+      // Don't throw — return stats for UX continuity, but notify user of partial failure.
+      // Session data may not have been saved — user should check history.
+      toast.error('Session may not have saved. Check your history or try again.');
     }
     
     return {

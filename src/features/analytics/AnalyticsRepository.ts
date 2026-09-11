@@ -140,7 +140,7 @@ export const AnalyticsRepository = {
             sql`${studySessions.startedAt} >= NOW() - INTERVAL '${sql.raw(String(STREAK_LOOKBACK_DAYS))} days'`
           )
         )
-        .orderBy(desc(studySessions.startedAt))
+        .orderBy(desc(sql<string>`TO_CHAR(${studySessions.startedAt}, 'YYYY-MM-DD')`))
         .limit(STREAK_LOOKBACK_DAYS);
 
       return rows.map(r => r.studyDate);

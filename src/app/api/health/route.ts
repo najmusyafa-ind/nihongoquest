@@ -1,4 +1,4 @@
-﻿// src/app/api/health/route.ts
+// src/app/api/health/route.ts
 // Health check endpoint -- used by Vercel, UptimeRobot, Sentry crons.
 // Always returns 200 (even degraded) so load balancers don't drop the instance.
 
@@ -13,16 +13,24 @@ export async function GET() {
   let dbStatus: "connected" | "degraded" = "connected";
   try {
     const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-    const key = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
+    // /rest/v1/ root requires service_role key (Supabase API change).
+    // This is a server-side route — safe to use SUPABASE_SERVICE_ROLE_KEY.
+    const key =
+      process.env["SUPABASE_SERVICE_ROLE_KEY"] ??
+      process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
     if (!url || !key) {
       dbStatus = "degraded";
     } else {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 2000);
+      const timeout = setTimeout(() => controller.abort(), 3000);
       try {
-        const res = await fetch(`${url}/rest/v1/`, {
-          headers: { apikey: key },
+        // Ping a specific table endpoint — works with both anon & service_role
+        const res = await fetch(`${url}/rest/v1/flashcards?select=id&limit=1`, {
+          headers: {
+            apikey: key,
+            Authorization: `Bearer ${key}`,
+          },
           signal: controller.signal,
         });
         clearTimeout(timeout);
