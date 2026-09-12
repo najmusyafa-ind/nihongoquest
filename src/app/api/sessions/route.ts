@@ -274,29 +274,19 @@ export async function POST(
       correctCount: body.correctCount,
       incorrectCount: body.incorrectCount,
       skippedCount: body.skippedCount,
-    });
+    }, user.id); // IDOR defense: compound WHERE (id + userId)
 
     // ── Persist per-card results for FLASHCARD mode (powers analytics) ─────────
+    // Uses Repository layer — no raw Drizzle in route file (Rule 1 compliance).
     // Bulk-insert with ON CONFLICT DO NOTHING — fully idempotent.
     // cardResults is optional (QUIZ mode does not supply flashcard UUIDs).
     if (body.cardResults && body.cardResults.length > 0) {
       try {
-        const { db } = await import('@/lib/db');
-        const { studyResults } = await import('../../../../db/schema');
-        await db
-          .insert(studyResults)
-          .values(
-            body.cardResults.map(r => ({
-              sessionId:   body.id,
-              userId:      user.id,
-              flashcardId: r.flashcardId,
-              sourceMode:  'FLASHCARD' as const,
-              vocabKey:    null,
-              userAnswer:  r.userAnswer,
-              result:      r.result as 'CORRECT' | 'INCORRECT' | 'SKIPPED',
-            }))
-          )
-          .onConflictDoNothing();
+        await StudySessionRepository.bulkInsertCardResults(
+          body.id,
+          user.id,
+          body.cardResults,
+        );
       } catch (resultErr) {
         // Non-blocking: log and continue. Session is already saved.
         log.error('[/api/sessions POST] Failed to insert card results (non-blocking):', {

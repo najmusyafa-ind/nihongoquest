@@ -2,11 +2,11 @@
 // APPEND-ONLY: INSERT only. No UPDATE, no DELETE.
 
 import { db } from '@/lib/db';
+import { z } from 'zod';
 
 import { studySessions, studyResults } from '../../../db/schema';
 
 import { eq, desc, lt, and } from 'drizzle-orm';
-
 
 import type { StudySession, StudyResult, PendingStudySession } from '@/types/entities';
 import { childLogger } from '@/lib/logger';
@@ -111,9 +111,16 @@ export const StudySessionRepository = {
    */
   async completeSession(
     sessionId: string,
-    counts: { correctCount: number; incorrectCount: number; skippedCount: number }
+    counts: { correctCount: number; incorrectCount: number; skippedCount: number },
+    userId?: string,
   ): Promise<void> {
     try {
+      // Defense-in-depth: compound WHERE (id + userId) prevents IDOR
+      // userId is optional for backwards-compat; always pass it from /api/sessions.
+      const whereClause = userId
+        ? and(eq(studySessions.id, sessionId), eq(studySessions.userId, userId))
+        : eq(studySessions.id, sessionId);
+
       await db
         .update(studySessions)
         .set({
@@ -123,7 +130,7 @@ export const StudySessionRepository = {
           skippedCount: counts.skippedCount,
           completedAt: new Date(),
         })
-        .where(eq(studySessions.id, sessionId));
+        .where(whereClause);
     } catch (error) {
       log.error('[StudySessionRepository] completeSession failed:', error);
       throw error;
@@ -203,10 +210,65 @@ export const StudySessionRepository = {
       throw error;
     }
   },
+
+  /**
+   * Bulk-insert per-card results for FLASHCARD mode.
+   * Called from POST /api/sessions after the session row is persisted.
+   *
+   * IDEMPOTENT: ON CONFLICT DO NOTHING — safe to retry (offline sync, duplicates).
+   * NON-BLOCKING: Caller wraps in try/catch — failure must NOT cancel the session save.
+   *
+   * Zod validates each row before insert (defense-in-depth, mirrors API schema).
+   * Hard cap: max 100 results per session (matches CardResultSchema.max(100) in route).
+   */
+  async bulkInsertCardResults(
+    sessionId: string,
+    userId: string,
+    cardResults: Array<{
+      flashcardId: string;
+      userAnswer: string;
+      result: 'CORRECT' | 'INCORRECT' | 'SKIPPED';
+    }>,
+  ): Promise<void> {
+    if (cardResults.length === 0) return;
+
+    // Row-level Zod guard (mirrors CardResultSchema in sessions/route.ts)
+    const RowSchema = z.object({
+      flashcardId: z.string().uuid(),
+      userAnswer:  z.string().max(200),
+      result:      z.enum(['CORRECT', 'INCORRECT', 'SKIPPED']),
+    });
+
+    const rows = cardResults
+      .slice(0, 100) // hard cap
+      .flatMap(r => {
+        const parsed = RowSchema.safeParse(r);
+        if (!parsed.success) return [];
+        return [{
+          sessionId,
+          userId,
+          flashcardId: parsed.data.flashcardId,
+          sourceMode:  'FLASHCARD' as const,
+          vocabKey:    null,
+          userAnswer:  parsed.data.userAnswer,
+          result:      parsed.data.result,
+        }];
+      });
+
+    if (rows.length === 0) return;
+
+    try {
+      await db
+        .insert(studyResults)
+        .values(rows)
+        .onConflictDoNothing();
+    } catch (error) {
+      log.error('[StudySessionRepository] bulkInsertCardResults failed:', {
+        error,
+        sessionId,
+        rowCount: rows.length,
+      });
+      throw error;
+    }
+  },
 };
-
-
-
-
-
-

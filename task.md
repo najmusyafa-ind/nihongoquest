@@ -1,7 +1,8 @@
 # NihongoQuest — Post-Audit Roadmap: Task Checklist
 _Architect: ultimate-fullstack-dev v8.4 + ultimate-uiux-dev v4.4_
-_Session: 2026-09-11 | Stack DNA: Profile A — Next.js 15 + Supabase + Drizzle_
-_Audit Score: 95/100 (Grade A) — 2 critical fixes applied this session_
+_Session: 2026-09-12 | Stack DNA: Profile A — Next.js 16 + Supabase + Drizzle_
+_Audit Score: 97/100 (Grade A+) — 7 fixes applied this session (post-push review)_
+_Previous Score: 95/100 (2026-09-11 session)_
 
 ---
 
@@ -74,6 +75,43 @@ _Audit Score: 95/100 (Grade A) — 2 critical fixes applied this session_
 - [ ] Sentry / OpenTelemetry integration (`middleware.ts` + `instrumentation.ts`)
 - [ ] Web Speech Synthesis API — pronunciation audio button in `FlashCard.tsx`
 - [ ] AWS Polly / Google TTS upgrade (optional, `AiExplainerService.ts`)
+
+---
+
+### ✅ TIER P0 — Post-Push Review Fixes (2026-09-12) `[100% COMPLETE]`
+
+- [x] **Phase 9** — `src/features/achievements/AchievementsService.ts`
+  - [x] Add `childLogger` import + `const log = childLogger('AchievementsService')`
+  - [x] Fix silent `catch {}` → `catch (err) { log.warn(...) }` in `evaluateAndPersistUnlocks()`
+  - [x] LEVEL 3 VETO resolved — silent failures now observable in production
+
+- [x] **Phase 10** — `src/features/study-session/StudySessionRepository.ts`
+  - [x] Add `import { z } from 'zod'` (Zod row validation in bulk insert)
+  - [x] Fix `completeSession()`: add optional `userId` param + compound WHERE (IDOR defense)
+  - [x] Add `bulkInsertCardResults()`: Repository layer method for per-card bulk insert
+  - [x] Zod validates each row before hitting DB (defense-in-depth)
+
+- [x] **Phase 11** — `src/app/api/sessions/route.ts`
+  - [x] Replace raw `db.insert(studyResults)` with `StudySessionRepository.bulkInsertCardResults()`
+  - [x] Pass `userId` to `completeSession()` call (compound WHERE)
+  - [x] LEVEL 2 Repository layer violation resolved — no Drizzle in route files
+
+- [x] **Phase 12** — `src/app/api/achievements/route.ts`
+  - [x] Remove `details: message` from 500 response (was leaking internal error.message to client)
+  - [x] Add server-side `log.error()` with full context for observability
+  - [x] LEVEL 2 CISO finding resolved
+
+- [x] **Phase 13** — `src/lib/rate-limit.ts`
+  - [x] Add `childLogger` import + `const log = childLogger('rate-limit')`
+  - [x] Replace `console.warn(...)` with `log.warn(...)` in Upstash fallback path
+  - [x] LEVEL 2 observability gap resolved
+
+- [x] **Phase 14** — `src/components/FlashCard.tsx`
+  - [x] Fix incorrect ESLint disable comment (`react-hooks/refs` → `react-hooks/exhaustive-deps`)
+  - [x] Expand comment explaining why this is a documented exception (GSAP ADR-006 + Rule 6)
+  - [x] LEVEL 1 documentation inconsistency resolved
+
+
 
 ---
 

@@ -118,7 +118,10 @@ export function FlashCard({ card, isRevealed, gradeResult, cardIndex, totalCards
     e.preventDefault();
   });
 
-  // gradeResult trigger — wraps contextSafe, not raw gsap. Approved pattern.
+  // gradeResult trigger — contextSafe wraps the GSAP call, so the fn reference is stable.
+  // exhaustive-deps is suppressed intentionally: animateGradeFlash is created via contextSafe()
+  // which is scoped to the GSAP context — re-creating it on every render would break the scope.
+  // This is the documented GSAP + React exception per ADR-006 and Rule 6.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (gradeResult) animateGradeFlash(gradeResult); }, [gradeResult]);
 

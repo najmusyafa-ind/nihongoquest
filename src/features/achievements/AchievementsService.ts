@@ -14,6 +14,9 @@ import type {
   AchievementsResponse,
 } from '@/types/achievements.types';
 import { AchievementsRepository } from './AchievementsRepository';
+import { childLogger } from '@/lib/logger';
+
+const log = childLogger('AchievementsService');
 
 // ─── Static Achievement Metadata ─────────────────────────────────────────────
 // Defined here (not in DB) — never changes at runtime.
@@ -242,9 +245,14 @@ export const AchievementsService = {
         if (inserted !== undefined) {
           newlyUnlocked.push(id);
         }
-      } catch {
+      } catch (err) {
         // Non-blocking: achievement persistence failure must NEVER crash the session save.
-        // The next session completion will retry (idempotent).
+        // The next session completion will retry via ON CONFLICT DO NOTHING on next session.
+        log.warn('[AchievementsService] insertUnlock failed (non-blocking):', {
+          achievementId: id,
+          userId,
+          err,
+        });
       }
     }
 

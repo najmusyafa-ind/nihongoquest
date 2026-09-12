@@ -13,6 +13,9 @@
 //   if (!rl.ok) return NextResponse.json({ error: ... }, { status: 429 });
 
 import type { NextRequest } from 'next/server';
+import { childLogger } from '@/lib/logger';
+
+const log = childLogger('rate-limit');
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface RateLimitOptions {
@@ -123,7 +126,7 @@ export async function checkRateLimit(
       };
     } catch {
       // Upstash unavailable — degrade to in-memory rather than blocking all requests
-      console.warn('[rate-limit] Upstash unavailable, falling back to in-memory');
+      log.warn('Upstash unavailable, falling back to in-memory rate limiter');
       return _inMemoryRateLimit(key, limit, windowMs);
     }
   }

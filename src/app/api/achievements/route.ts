@@ -87,13 +87,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       headers: { 'Cache-Control': 'private, max-age=60' },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    // Log full detail server-side — never expose internal error.message to client (CISO finding)
+    const { childLogger } = await import('@/lib/logger');
+    const log = childLogger('api/achievements');
+    log.error('[/api/achievements GET] Evaluation failed:', { error, userId });
+
     return NextResponse.json(
       {
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Failed to evaluate achievements.',
-          details: message,
         },
       },
       { status: 500 },
