@@ -1,4 +1,4 @@
-// src/app/api/analytics/summary/route.ts
+﻿// src/app/api/analytics/summary/route.ts
 // Controller: GET /api/analytics/summary â†’ AnalyticsSummary
 // Auth â†’ AnalyticsService â†’ typed response.
 // Graceful degradation: Supabase paused OR user has no data â†’ EMPTY_SUMMARY (not 500)

@@ -1,142 +1,67 @@
-# NihongoQuest — Error Monitoring Setup (Sentry)
+﻿# Error Monitoring — Sentry Setup Guide
 
-> **Important #4 dari Pre-Production Checklist**
-> Dokumen ini menjelaskan cara setup Sentry untuk monitoring production errors.
+NihongoQuest menggunakan **Sentry** untuk error monitoring production.
+Sentry sudah terintegrasi penuh di kode — yang dibutuhkan hanya env var DSN.
 
-## Kenapa Sentry?
+---
 
-Tanpa error monitoring, kamu **buta** terhadap production crashes. Sentry akan:
-- Notifikasi real-time saat user encounter error
-- Capture stack trace + request context
-- Track error frequency dan impacted users
+## Setup (5 menit)
 
-## Langkah Setup (15 menit)
+### 1. Buat Sentry Project
 
-### 1. Install Package
+1. Buka https://sentry.io → Sign Up (gratis, 5.000 errors/bulan)
+2. Create Project → pilih platform: **Next.js**
+3. Nama project: `nihongoquest`
 
-```bash
-npm install @sentry/nextjs
-```
+### 2. Ambil DSN
 
-### 2. Jalankan Wizard (Otomatis)
+- Pergi ke: **Settings → Projects → nihongoquest → Client Keys (DSN)**
+- Copy DSN-nya (format: `https://xxxxxx@o0.ingest.sentry.io/yyyyyyy`)
 
-```bash
-npx @sentry/wizard@latest -i nextjs
-```
+### 3. Buat Auth Token
 
-Wizard akan:
-- Login/daftar Sentry.io
-- Buat project baru
-- Generate `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`
-- Tambah env vars ke `.env.local`
+- Pergi ke: **User Settings → Auth Tokens → Create New Token**
+- Scopes yang dibutuhkan: `project:releases`, `org:read`
+- Copy token-nya (format: `sntrys_xxxxxxxx`)
 
-### 3. Env Vars yang Dibutuhkan
-
-Tambahkan ke `.env.local` dan hosting (Vercel/Railway):
+### 4. Tambah ke .env.local
 
 ```bash
-SENTRY_DSN=https://xxxxxxxx@o0.ingest.sentry.io/xxxxxxxx
-SENTRY_AUTH_TOKEN=sntrys_xxxxxxxx  # Untuk source maps upload
-NEXT_PUBLIC_SENTRY_DSN=https://xxxxxxxx@o0.ingest.sentry.io/xxxxxxxx
+NEXT_PUBLIC_SENTRY_DSN=https://your-dsn@o0.ingest.sentry.io/your-id
+SENTRY_DSN=https://your-dsn@o0.ingest.sentry.io/your-id
+SENTRY_AUTH_TOKEN=sntrys_your-token
 ```
 
-Tambahkan ke `.env.example`:
-```bash
-# Error Monitoring (Sentry)
-SENTRY_DSN=https://your-dsn@o0.ingest.sentry.io/your-project-id
-SENTRY_AUTH_TOKEN=sntrys_your-auth-token
-NEXT_PUBLIC_SENTRY_DSN=https://your-dsn@o0.ingest.sentry.io/your-project-id
-```
+### 5. Tambah ke Vercel
 
-### 4. Konfigurasi yang Direkomendasikan
+Vercel Dashboard → Settings → Environment Variables → tambah ketiga variable di atas.
 
-Setelah wizard, edit `sentry.client.config.ts`:
+---
 
-```typescript
-import * as Sentry from '@sentry/nextjs';
+## Yang Sudah Terintegrasi (Zero Config)
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NODE_ENV,
-  
-  // Capture 10% of transactions in production (cost control)
-  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-  
-  // Replay 1% of sessions, 10% of error sessions
-  replaysSessionSampleRate: 0.01,
-  replaysOnErrorSampleRate: 0.1,
-  
-  // Don't capture errors in development
-  enabled: process.env.NODE_ENV === 'production',
-  
-  // Filter noise
-  ignoreErrors: [
-    'ResizeObserver loop limit exceeded',
-    'Network request failed',
-  ],
-  
-  integrations: [
-    Sentry.replayIntegration(),
-  ],
-});
-```
+| File | Fungsi |
+|------|--------|
+| `sentry.client.config.ts` | Error capture di browser, Session Replay (5% sessions) |
+| `sentry.server.config.ts` | Error capture di Node.js runtime (API routes) |
+| `sentry.edge.config.ts` | Error capture di Edge runtime (middleware) |
+| `src/instrumentation.ts` | Auto-register Sentry on server startup |
 
-### 5. Tambahkan ke `next.config.ts`
+## PII Scrubbing (GDPR-Safe)
 
-Wrap config dengan `withSentryConfig`:
+Sentry dikonfigurasi untuk **TIDAK mengirim data pribadi user**:
+- `userAnswer` (jawaban belajar user) → di-strip sebelum dikirim ke Sentry
+- `email`, `token`, `apiKey` → sudah di-redact oleh logger.ts
+- Session Replay: `maskAllText: true`, `blockAllMedia: true`
+- User object: hanya `id` anonim yang dikirim, bukan email/nama
 
-```typescript
-import { withSentryConfig } from '@sentry/nextjs';
+## Verifikasi Setup
 
-// ... existing nextConfig ...
-
-export default withSentryConfig(nextConfig, {
-  org: 'your-sentry-org',
-  project: 'nihongoquest',
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  hideSourceMaps: true,  // Don't expose source maps to users
-  disableLogger: true,
-  automaticVercelMonitors: true,
-});
-```
-
-## Alternatif Gratis: Axiom
-
-Jika tidak ingin Sentry (gratis tier terbatas), gunakan **Axiom**:
+Setelah menambah env vars, test dengan membuat error manual:
 
 ```bash
-npm install next-axiom
+# Di browser console (halaman manapun di app):
+throw new Error("Sentry test — NihongoQuest")
 ```
 
-Axiom memberikan logging terstruktur tanpa biaya untuk volume kecil.
-Docs: https://axiom.co/docs/guides/nextjs
-
-## Vercel Built-in (Paling Simple)
-
-Jika deploy ke **Vercel**, aktifkan **Vercel Speed Insights** dan **Vercel Analytics** gratis:
-
-```bash
-npm install @vercel/analytics @vercel/speed-insights
-```
-
-Tambahkan ke `src/app/layout.tsx`:
-
-```tsx
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
-
-// Di dalam RootLayout return:
-<>
-  {children}
-  <Analytics />
-  <SpeedInsights />
-</>
-```
-
-Ini memberikan:
-- Page view tracking
-- Core Web Vitals (LCP, CLS, FID)
-- Error tracking (basic)
-
-Tanpa perlu akun Sentry atau env var tambahan — otomatis aktif di Vercel dashboard.
+Cek Sentry dashboard dalam 30 detik — event harus muncul.
