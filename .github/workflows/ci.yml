@@ -1,10 +1,14 @@
-﻿name: CI
+name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Berjalan otomatis setiap hari Senin pukul 06:00 WIB (Minggu 23:00 UTC)
+    - cron: '0 23 * * 0'
+  workflow_dispatch: # Memungkinkan tombol "Run workflow" manual di tab Actions GitHub
 
 # Cancel in-progress runs when a new commit is pushed (saves CI minutes)
 concurrency:
@@ -103,3 +107,26 @@ jobs:
 
       - name: Build production bundle
         run: npm run build
+
+  # ── Job 5: Production Health & Live DB Check ───────────────────────────────
+  health-check:
+    name: Live Production Health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping NihongoQuest Production API
+        run: |
+          echo "Pinging production health check..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" https://nihongoquest-ashen.vercel.app/api/health)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Response Body: $BODY"
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "❌ Production API returned status $HTTP_CODE"
+            exit 1
+          fi
+          if ! echo "$BODY" | grep -q '"db":"connected"'; then
+            echo "❌ Database is not reported as connected!"
+            exit 1
+          fi
+          echo "✅ Production is alive and Supabase DB is connected!"
